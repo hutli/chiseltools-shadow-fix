@@ -50,7 +50,7 @@ namespace ChiselToolsShadowFix
             if (!world.Claims.TryAccess(player, pos, EnumBlockAccessFlags.Use)) return;
 
             BlockEntity be = FixAbsorption(world.BlockAccessor, pos);
-            be?.MarkDirty(true); // send the block to clients, like the chisel does after a mirror
+            be?.MarkDirty(true);
         }
 
         #endregion
