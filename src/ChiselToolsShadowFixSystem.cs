@@ -14,7 +14,6 @@ namespace ChiselToolsShadowFix
     {
         public const string ModId = "chiseltoolsshadowfix";
 
-        private static readonly string[] RelightModes = { "SHAPEPASTE", "PASTEALL", "ADDPASTE", "ADDPASTEALL", "MIRRORPASTE" };
         private static int RelightDelayMs = 500;
         private const int ClientRelightDelayMs = 250;
 
