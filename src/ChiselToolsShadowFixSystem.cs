@@ -107,16 +107,12 @@ namespace ChiselToolsShadowFix
             return TextCommandResult.Success($"Relight delay set to {RelightDelayMs}ms");
         }
 
-        private static void OnHeldInteractStartPostfix(Item __instance, ItemSlot slot, EntityAgent byEntity,
-            BlockSelection blockSel, bool firstEvent, ref EnumHandHandling handling)
+        private static void OnHeldInteractStartPostfix(BlockSelection blockSel, EntityAgent byEntity,
+            bool firstEvent, EnumHandHandling handling)
         {
             if (!Enabled) return;
             if (!firstEvent || blockSel == null || handling == EnumHandHandling.NotHandled) return;
             if (!(byEntity?.World?.Api is ICoreClientAPI capi)) return;
-            if (slot?.Itemstack == null) return;
-
-            string mode = (string)getToolModeFromSlot.Invoke(__instance, new object[] { slot });
-            if (Array.IndexOf(RelightModes, mode) < 0) return;
 
             BlockPos pos = blockSel.Position.Copy();
             capi.Event.RegisterCallback(_ => RequestRelight(capi, pos), RelightDelayMs);
