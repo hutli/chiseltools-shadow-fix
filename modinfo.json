@@ -1,14 +1,14 @@
 {
   "type": "code",
-  "modid": "chiseltools-lighting-fix",
-  "name": "QP's Chisel Tools Lighting Fix",
+  "modid": "chiseltools-shadow-fix",
+  "name": "QP's Chisel Tools Shadow Fix",
   "authors": [
     "hutli", "Neef"
   ],
-  "description": "Client-side fix for the paste lighting bug in Quentin's Chiseling Tools'",
+  "description": "Client- and Server-side fix for the pantograph/multigraph Shadow bug in Quentin's Chiseling Tools. Can work client side only, but it will only fix shadows for blocks you edit; not everyone else on a server (not even after a chunk reload or relogging).",
   "version": "1.17.9",
   "side": "Client",
-  "requiredOnClient": false,
+  "requiredOnClient": true,
   "requiredOnServer": false,
   "dependencies": {
     "game": "1.22.7",

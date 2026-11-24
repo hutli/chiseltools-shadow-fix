@@ -15,15 +15,15 @@ unzip -p "$tmp/chiseltools.zip" > lib/chiseltools.dll
 cat > ./modinfo.json<< EOF
 {
   "type": "code",
-  "modid": "chiseltools-lighting-fix",
-  "name": "QP's Chisel Tools Lighting Fix",
+  "modid": "chiseltools-shadow-fix",
+  "name": "QP's Chisel Tools Shadow Fix",
   "authors": [
     "hutli", "Neef"
   ],
-  "description": "Client-side fix for the paste lighting bug in Quentin's Chiseling Tools'",
+  "description": "Client- and Server-side fix for the pantograph/multigraph Shadow bug in Quentin's Chiseling Tools. Can work client side only, but it will only fix shadows for blocks you edit; not everyone else on a server (not even after a chunk reload or relogging).",
   "version": "$CHISELTOOL_VERSION",
   "side": "Client",
-  "requiredOnClient": false,
+  "requiredOnClient": true,
   "requiredOnServer": false,
   "dependencies": {
     "game": "$VS_VERSION",
@@ -34,4 +34,4 @@ EOF
 
 VINTAGE_STORY=/opt/vintagestory VERSION=$CHISELTOOL_VERSION dotnet build -c Release
 
-ls bin/Release/ChiselToolsLightingFix_*
+ls bin/Release/ChiselToolsShadowFix_*
