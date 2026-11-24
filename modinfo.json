@@ -1,0 +1,17 @@
+{
+  "type": "code",
+  "modid": "chiseltools-lighting-fix",
+  "name": "QP's Chisel Tools Lighting Fix",
+  "authors": [
+    "hutli", "Neef"
+  ],
+  "description": "Client-side fix for the paste lighting bug in Quentin's Chiseling Tools'",
+  "version": "1.17.9",
+  "side": "Client",
+  "requiredOnClient": false,
+  "requiredOnServer": false,
+  "dependencies": {
+    "game": "1.22.7",
+    "chiseltools": "1.17.9"
+  }
+}

@@ -1,0 +1,58 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>ChiselToolsLightingFix</AssemblyName>
+    <RootNamespace>ChiselToolsLightingFix</RootNamespace>
+    <Version>$(VERSION)</Version>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="VintagestoryAPI">
+      <HintPath>$(VINTAGE_STORY)/VintagestoryAPI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="0Harmony">
+      <HintPath>$(VINTAGE_STORY)/Lib/0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="modinfo.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="modicon.png" Condition="Exists('modicon.png')"
+      CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <Target Name="FailWithoutGamePath" BeforeTargets="ResolveAssemblyReferences"
+    Condition="'$(VINTAGE_STORY)' == ''">
+    <Error
+      Text="The VINTAGE_STORY environment variable is not set. Point it at your Vintage Story install folder (see https://wiki.vintagestory.at/Modding:Preparing_For_Code_Mods)." />
+  </Target>
+
+  <!-- Package the mod the way the game expects it: modinfo.json + dll at the zip root -->
+  <Target Name="PackageMod" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">
+    <PropertyGroup>
+      <ModZipStaging>$(BaseIntermediateOutputPath)modzip/</ModZipStaging>
+      <ModZipPath>$(OutDir)$(AssemblyName)_$(Version).zip</ModZipPath>
+    </PropertyGroup>
+    <RemoveDir Directories="$(ModZipStaging)" />
+    <Copy SourceFiles="$(OutDir)$(AssemblyName).dll;modinfo.json"
+      DestinationFolder="$(ModZipStaging)" />
+    <Copy SourceFiles="$(OutDir)$(AssemblyName).pdb" DestinationFolder="$(ModZipStaging)"
+      Condition="Exists('$(OutDir)$(AssemblyName).pdb')" />
+    <Copy SourceFiles="modicon.png" DestinationFolder="$(ModZipStaging)"
+      Condition="Exists('modicon.png')" />
+    <Delete Files="$(ModZipPath)" />
+    <ZipDirectory SourceDirectory="$(ModZipStaging)" DestinationFile="$(ModZipPath)"
+      Overwrite="true" />
+    <Message Importance="high" Text="Mod packaged: $(ModZipPath)" />
+  </Target>
+
+</Project>
