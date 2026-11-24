@@ -1,3 +1,5 @@
+# QP's Chisel Tools Shadow Fix
+
 Client- and Server-side fix for the pantograph/multigraph Shadow bug in QP's Chisel Tools.
 
 Have you ever noticed weird lighting/shadow bugs when pasting in QP's Chisel Tools? Have you been tired of having to "flip" blocks with the chisel to get it to "update the light of the block"? Even though it kinda looks like QP does update the block's shadow and lighting, especially after 1.7.3?
