@@ -15,7 +15,7 @@ unzip -p "$tmp/chiseltools.zip" > lib/chiseltools.dll
 cat > ./modinfo.json<< EOF
 {
   "type": "code",
-  "modid": "chiseltools-shadow-fix",
+  "modid": "chiseltoolsshadowfix",
   "name": "QP's Chisel Tools Shadow Fix",
   "authors": [
     "hutli", "Neef"
