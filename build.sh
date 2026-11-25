@@ -3,6 +3,7 @@
 set -e 
 
 CHISELTOOL_VERSION=1.17.9
+MOD_VERSION=$CHISELTOOL_VERSION
 VS_VERSION=1.22.7
 
 mkdir -p ./lib
@@ -21,7 +22,7 @@ cat > ./modinfo.json<< EOF
     "hutli", "Neef"
   ],
   "description": "Client- and Server-side fix for the pantograph/multigraph Shadow bug in Quentin's Chiseling Tools. Can work client side only, but it will only fix shadows for blocks you edit; not everyone else on a server (not even after a chunk reload or relogging).",
-  "version": "$CHISELTOOL_VERSION",
+  "version": "$MOD_VERSION",
   "side": "Universal",
   "requiredOnClient": true,
   "requiredOnServer": false,
@@ -32,6 +33,6 @@ cat > ./modinfo.json<< EOF
 }
 EOF
 
-VINTAGE_STORY=/opt/vintagestory VERSION=$CHISELTOOL_VERSION dotnet build -c Release
+VINTAGE_STORY=/opt/vintagestory VERSION=$MOD_VERSION dotnet build -c Release
 
 ls bin/Release/ChiselToolsShadowFix_*
