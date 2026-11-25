@@ -3,8 +3,8 @@ using System.Reflection;
 
 using HarmonyLib;
 
-using Vintagestory.API.Client;
 using Vintagestory.API.Common;
+using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
 
@@ -14,140 +14,83 @@ namespace ChiselToolsShadowFix
     {
         public const string ModId = "chiseltoolsshadowfix";
 
-        private static int RelightDelayMs = 500;
-        private const int ClientRelightDelayMs = 250;
-
-        private static bool Enabled = true;
-
-        private static MethodInfo getToolModeFromSlot;
         private static MethodInfo rebuildCuboidList;
-
-        private static IClientNetworkChannel clientChannel;
 
         private Harmony harmony;
 
-        public override void Start(ICoreAPI api)
-        {
-            rebuildCuboidList = AccessTools.Method(
-                AccessTools.TypeByName("Vintagestory.GameContent.BlockEntityMicroBlock"), "RebuildCuboidList", Type.EmptyTypes);
-            if (rebuildCuboidList == null)
-                Mod.Logger.Warning("BlockEntityMicroBlock.RebuildCuboidList not found; light absorption can't be fixed.");
-
-            api.Network.RegisterChannel(ModId).RegisterMessageType<BlockPos>();
-        }
-
-        #region Server
-
         public override void StartServerSide(ICoreServerAPI api)
         {
-            api.Network.GetChannel(ModId).SetMessageHandler<BlockPos>(OnRelightRequest);
-        }
-
-        private static void OnRelightRequest(IServerPlayer player, BlockPos pos)
-        {
-            IWorldAccessor world = player.Entity.World;
-            if (!world.Claims.TryAccess(player, pos, EnumBlockAccessFlags.Use)) return;
-
-            BlockEntity be = FixAbsorption(world.BlockAccessor, pos);
-            be?.MarkDirty(true);
-        }
-
-        #endregion
-
-        #region Client
-
-        public override void StartClientSide(ICoreClientAPI api)
-        {
-            clientChannel = api.Network.GetChannel(ModId);
-
-            api.ChatCommands.Create("relight")
-                .WithDescription("Toggle relight (enabled by default)")
-                .HandleWith(EnableRelight);
-
-            api.ChatCommands.Create("relight-delay")
-                .WithDescription("Set relight delay in milliseconds")
-                .WithArgs(api.ChatCommands.Parsers.Int("Delay in milliseconds"))
-                .HandleWith(SetRelightDelay);
-
             try
             {
-                // ItemPantograph is internal to chiseltools, so it's looked up by name.
-                Type pantograph = AccessTools.TypeByName("chisel.src.ItemPantograph")
-                    ?? throw new MissingMemberException("type chisel.src.ItemPantograph");
-                getToolModeFromSlot = AccessTools.Method(pantograph, "GetToolModeFromSlot", new[] { typeof(ItemSlot) })
-                    ?? throw new MissingMemberException("ItemPantograph.GetToolModeFromSlot");
-                MethodInfo interactStart = AccessTools.Method(pantograph, "OnHeldInteractStart")
-                    ?? throw new MissingMemberException("ItemPantograph.OnHeldInteractStart");
+                rebuildCuboidList = AccessTools.Method("Vintagestory.GameContent.BlockEntityMicroBlock:RebuildCuboidList") ?? throw new MissingMemberException("Vintagestory.GameContent.BlockEntityMicroBlock:RebuildCuboidList");
 
                 harmony = new Harmony(ModId);
-                harmony.Patch(interactStart, postfix: new HarmonyMethod(typeof(ChiselToolsShadowFixSystem), nameof(OnHeldInteractStartPostfix)));
+                Patch("chisel.src.ItemPantograph:OnHeldInteractStart", nameof(BlockSelPostfix));
+                Patch("chisel.src.ItemPantograph:OnHeldAttackStart", nameof(BlockSelPostfix));
+                Patch("chisel.src.ItemPantograph:Undo", nameof(UndoPostfix));
             }
             catch (Exception e)
             {
-                Mod.Logger.Error("Failed to patch QP's Chisel Tools pantograph/multigraph (has chiseltools been updated?): {0}", e);
+                Mod.Logger.Error("Failed to patch QP's Chisel Tools (has chiseltools or VS been updated?): {0}", e);
                 harmony?.UnpatchAll(ModId);
                 harmony = null;
             }
         }
 
-        private TextCommandResult EnableRelight(TextCommandCallingArgs args)
+        private void Patch(string original, string postfix)
         {
-            Enabled = !Enabled;
-            return TextCommandResult.Success(Enabled
-                ? $"Relight ON with {RelightDelayMs}ms delay ({(clientChannel.Connected ? "server" : "client-only")} fix)"
-                : "Relight OFF");
+            MethodInfo method = AccessTools.Method(original) ?? throw new MissingMemberException(original);
+            harmony.Patch(method, postfix: new HarmonyMethod(typeof(ChiselToolsShadowFixSystem), postfix));
         }
 
-        private TextCommandResult SetRelightDelay(TextCommandCallingArgs args)
-        {
-            int delay = (int)args[0];
-            if (delay < 0) return TextCommandResult.Error("Delay can't be negative.");
-            RelightDelayMs = delay;
-            return TextCommandResult.Success($"Relight delay set to {RelightDelayMs}ms");
+        private static void BlockSelPostfix(BlockSelection blockSel, EntityAgent byEntity) {
+            // When a block is clicked (right and left) with the pantograph (includes multigraph) we run the fix.
+            // We could trigger this more fine grained, i.e. only on modes that can change shape and therefore
+            // the light absorption of a block but since ChiselTools is constantly developing new modes I decided
+            // to always do it. This mod shouldn't be very heavy as these calculations are the same when just using
+            // a normal chisel or placing/removing blocks.
+            if (blockSel != null) FixAbsorption(byEntity.World, blockSel.Position);
         }
 
-        private static void OnHeldInteractStartPostfix(BlockSelection blockSel, EntityAgent byEntity,
-            bool firstEvent, EnumHandHandling handling)
-        {
-            if (!Enabled) return;
-            if (!firstEvent || blockSel == null || handling == EnumHandHandling.NotHandled) return;
-            if (!(byEntity?.World?.Api is ICoreClientAPI capi)) return;
-
-            BlockPos pos = blockSel.Position.Copy();
-            capi.Event.RegisterCallback(_ => RequestRelight(capi, pos), RelightDelayMs);
+        private static void UndoPostfix(ItemSlot slot, ICoreAPI ___api) {
+            // Since undo isn't an interaction on a block we need to get the position from the tool itself
+            BlockPos pos = slot.Itemstack?.Attributes.GetBlockPos("undoposition");
+            if (pos != null) FixAbsorption(___api.World, pos);
         }
 
-        private static void RequestRelight(ICoreClientAPI capi, BlockPos pos)
+        private static void FixAbsorption(IWorldAccessor world, BlockPos pos)
         {
-            if (clientChannel.Connected)
-            {
-                clientChannel.SendPacket(pos);
-                return;
-            }
+            if (world.Side != EnumAppSide.Server) return;
 
-            capi.Network.GetChannel("pastenet")?.SendPacket(pos);
-            capi.Event.RegisterCallback(_ => FixAbsorption(capi.World.BlockAccessor, pos), ClientRelightDelayMs);
-        }
-
-        #endregion
-
-        private static BlockEntity FixAbsorption(IBlockAccessor ba, BlockPos pos)
-        {
+            IBlockAccessor ba = world.BlockAccessor;
             BlockEntity be = ba.GetBlockEntity(pos);
-            if (be == null || rebuildCuboidList == null || !rebuildCuboidList.DeclaringType.IsInstanceOfType(be)) return null;
+            if (be == null || !rebuildCuboidList.DeclaringType.IsInstanceOfType(be)) return;
 
+            // Rebuild cuboid list from actual block voxels (edited directly by ChiselTools)
+            // This results in a recalculation of the absorption flag
             rebuildCuboidList.Invoke(be, null);
 
+            // Read the block's updated light absorption
             int now = ba.GetBlock(pos).GetLightAbsorption(ba, pos);
+
+            // Force a "relight" of all surrounding blocks.
+            // We use a fake old value that is different from the new corrected one.
+            //
+            // chiseltools triggers a similar relight in PasteMaterials.
+            // However, this works on the stale absorption flag
+            // since it never rebuilds the cuboid list.
+            // Also, it never does this on things like
+            // rotate, mirror, move, modify and undo - which can also change the absorption.
             ba.MarkAbsorptionChanged(now == 0 ? 1 : 0, now, pos);
-            return be;
+
+            // Send the updated block to clients and mark the chunk for saving.
+            be.MarkDirty(true);
         }
 
         public override void Dispose()
         {
             harmony?.UnpatchAll(ModId);
             harmony = null;
-            clientChannel = null;
             base.Dispose();
         }
     }

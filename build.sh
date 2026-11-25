@@ -21,11 +21,11 @@ cat > ./modinfo.json<< EOF
   "authors": [
     "hutli", "Neef"
   ],
-  "description": "Client- and Server-side fix for the pantograph/multigraph Shadow bug in Quentin's Chiseling Tools. Can work client side only, but it will only fix shadows for blocks you edit; not everyone else on a server (not even after a chunk reload or relogging).",
+  "description": "Server-side fix for the pantograph/multigraph Shadow (absorption) bug in Quentin's Chiseling Tools.",
   "version": "$MOD_VERSION",
-  "side": "Universal",
-  "requiredOnClient": true,
-  "requiredOnServer": false,
+  "side": "Server",
+  "requiredOnClient": false,
+  "requiredOnServer": true,
   "dependencies": {
     "game": "$VS_VERSION",
     "chiseltools": "$CHISELTOOL_VERSION"
