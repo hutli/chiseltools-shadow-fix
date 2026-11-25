@@ -1,6 +1,6 @@
 #!/bin/sh
 
-set -e 
+set -e
 
 CHISELTOOL_VERSION=1.17.9
 MOD_VERSION=$CHISELTOOL_VERSION
@@ -11,9 +11,9 @@ tmp=$(mktemp -d)
 trap "rm -rf \"$tmp\"" EXIT
 
 curl -sSL https://mods.vintagestory.at/download/127670/ChiselTools$CHISELTOOL_VERSION.zip -o "$tmp/chiseltools.zip"
-unzip -p "$tmp/chiseltools.zip" > lib/chiseltools.dll
+unzip -p "$tmp/chiseltools.zip" >lib/chiseltools.dll
 
-cat > ./modinfo.json<< EOF
+cat >./modinfo.json <<EOF
 {
   "type": "code",
   "modid": "chiseltoolsshadowfix",

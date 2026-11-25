@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Reflection;
 
 using HarmonyLib;
@@ -7,6 +8,7 @@ using Vintagestory.API.Common;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
+
 
 namespace ChiselToolsShadowFix
 {
@@ -24,10 +26,17 @@ namespace ChiselToolsShadowFix
             {
                 rebuildCuboidList = AccessTools.Method("Vintagestory.GameContent.BlockEntityMicroBlock:RebuildCuboidList") ?? throw new MissingMemberException("Vintagestory.GameContent.BlockEntityMicroBlock:RebuildCuboidList");
 
+                Assembly chiselTools = api.ModLoader.GetMod("chiseltools")?.Systems.FirstOrDefault()?.GetType().Assembly ?? throw new MissingMemberException("chiseltools mod");
+
                 harmony = new Harmony(ModId);
-                Patch("chisel.src.ItemPantograph:OnHeldInteractStart", nameof(BlockSelPostfix));
-                Patch("chisel.src.ItemPantograph:OnHeldAttackStart", nameof(BlockSelPostfix));
-                Patch("chisel.src.ItemPantograph:Undo", nameof(UndoPostfix));
+
+                foreach (Type type in chiselTools.GetTypes())
+                {
+                    if (!typeof(Item).IsAssignableFrom(type)) continue;
+                    Patch(type, "OnHeldInteractStart", nameof(BlockSelPostfix));
+                    Patch(type, "OnHeldAttackStart", nameof(BlockSelPostfix));
+                    Patch(type, "Undo", nameof(UndoPostfix));
+                }
             }
             catch (Exception e)
             {
@@ -37,22 +46,28 @@ namespace ChiselToolsShadowFix
             }
         }
 
-        private void Patch(string original, string postfix)
+        private void Patch(Type type, string method, string postfix)
         {
-            MethodInfo method = AccessTools.Method(original) ?? throw new MissingMemberException(original);
-            harmony.Patch(method, postfix: new HarmonyMethod(typeof(ChiselToolsShadowFixSystem), postfix));
+            MethodInfo original = AccessTools.DeclaredMethod(type, method);
+            if (original != null) harmony.Patch(original, postfix: new HarmonyMethod(typeof(ChiselToolsShadowFixSystem), postfix));
         }
 
-        private static void BlockSelPostfix(BlockSelection blockSel, EntityAgent byEntity) {
-            // When a block is clicked (right and left) with the pantograph (includes multigraph) we run the fix.
-            // We could trigger this more fine grained, i.e. only on modes that can change shape and therefore
-            // the light absorption of a block but since ChiselTools is constantly developing new modes I decided
-            // to always do it. This mod shouldn't be very heavy as these calculations are the same when just using
-            // a normal chisel or placing/removing blocks.
+        private static void BlockSelPostfix(BlockSelection blockSel, EntityAgent byEntity)
+        {
+            // When a block is clicked (right and left) with any chiseltools tool we run the fix.
+            // 
+            // We could trigger this more fine grained, i.e. only on modes that can change shape
+            // and therefore the light absorption of a block, but since ChiselTools
+            // is constantly developing new modes I decided to always do it.
+            // This mod shouldn't be very heavy as these calculations are the same
+            // as when just using a normal chisel or placing/removing blocks.
             if (blockSel != null) FixAbsorption(byEntity.World, blockSel.Position);
         }
 
-        private static void UndoPostfix(ItemSlot slot, ICoreAPI ___api) {
+        private static void UndoPostfix(ItemSlot slot, ICoreAPI ___api)
+        {
+            // When undo is run from any chiseltools tool we run the fix.
+            //
             // Since undo isn't an interaction on a block we need to get the position from the tool itself
             BlockPos pos = slot.Itemstack?.Attributes.GetBlockPos("undoposition");
             if (pos != null) FixAbsorption(___api.World, pos);
@@ -71,17 +86,17 @@ namespace ChiselToolsShadowFix
             rebuildCuboidList.Invoke(be, null);
 
             // Read the block's updated light absorption
-            int now = ba.GetBlock(pos).GetLightAbsorption(ba, pos);
+            int newAbsorption = ba.GetBlock(pos).GetLightAbsorption(ba, pos);
 
             // Force a "relight" of all surrounding blocks.
             // We use a fake old value that is different from the new corrected one.
             //
-            // chiseltools triggers a similar relight in PasteMaterials.
+            // ChiselTools triggers a similar relight in PasteMaterials.
             // However, this works on the stale absorption flag
             // since it never rebuilds the cuboid list.
             // Also, it never does this on things like
-            // rotate, mirror, move, modify and undo - which can also change the absorption.
-            ba.MarkAbsorptionChanged(now == 0 ? 1 : 0, now, pos);
+            // rotate, mirror, move, modify, undo etc - which can also change the absorption.
+            ba.MarkAbsorptionChanged(newAbsorption == 0 ? 1 : 0, newAbsorption, pos);
 
             // Send the updated block to clients and mark the chunk for saving.
             be.MarkDirty(true);
